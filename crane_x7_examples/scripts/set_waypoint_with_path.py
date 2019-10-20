@@ -9,9 +9,8 @@ from tf.transformations import quaternion_from_euler
 
 import copy
 
-
 def main():
-    rospy.init_node("pose_groupstate_example")
+    rospy.init_node("set_waypoint_with_path")
     robot = moveit_commander.RobotCommander()
     arm = moveit_commander.MoveGroupCommander("arm")
     arm.set_max_velocity_scaling_factor(0.1)
@@ -39,48 +38,40 @@ def main():
     waypoints = []
 
     wpose = arm.get_current_pose().pose
-    wpose.position.z += 0.1
-    waypoints.append(copy.deepcopy(wpose))
+    
+    # 上方から掴む
+    q = quaternion_from_euler(-3.14, 0.0, 0.0)  
+    wpose.orientation.x = q[0]
+    wpose.orientation.y = q[1]
+    wpose.orientation.z = q[2]
+    wpose.orientation.w = q[3]
+    waypoints.append(copy.deepcopy(wpose)) # Waypointの追加
 
+    wpose.position.z -= 0.15
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.z += 0.15
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.y += 0.1
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.x += 0.1
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.z -= 0.15
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.z += 0.15
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.x -= 0.1
+    waypoints.append(copy.deepcopy(wpose))
     wpose.position.y -= 0.1
     waypoints.append(copy.deepcopy(wpose))
 
-    wpose.position.x += 0.2
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.y += 0.2
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.x -= 0.2
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.y -= 0.1
-    waypoints.append(copy.deepcopy(wpose))
+    # Pathを生成する
+    (plan, fraction) = arm.compute_cartesian_path(waypoints, 0.01, 0.0)
 
-    (plan, fraction) = arm.compute_cartesian_path(waypoints, 0.01, 100.0)
-    rospy.sleep(5.0)
+    # 0.1倍速で動かす
+    plan = arm.retime_trajectory(robot.get_current_state(), plan, 0.1)
 
-    print "=" * 10, " plan4..."
+    # Planを実行
     arm.execute(plan)
-
-    # 手動で姿勢を指定するには以下のように指定
-    """
-    target_pose = geometry_msgs.msg.Pose()
-    target_pose.position.x = 0.0
-    target_pose.position.y = 0.0
-    target_pose.position.z = 0.624
-    q = quaternion_from_euler( 0.0, 0.0, 0.0 )
-    target_pose.orientation.x = q[0]
-    target_pose.orientation.y = q[1]
-    target_pose.orientation.z = q[2]
-    target_pose.orientation.w = q[3]
-    arm.set_pose_target( target_pose )	# 目標ポーズ設定
-    arm.go()							# 実行
-    """
-
-    # 移動後の手先ポーズを表示
-    arm_goal_pose = arm.get_current_pose().pose
-    print("Arm goal pose:")
-    print(arm_goal_pose)
-    print("done")
-
 
 if __name__ == '__main__':
     try:
